@@ -2,6 +2,9 @@
 import socket as mysoc
 import hmac
 
+# TLDS2 listens on port 65349 for both AS and CLIENT
+# TLDS2 ONLY LISTENS FOR NEW SOCKET CONNECTIONS
+
 
 class Node:
     def __init__(self, host, ipaddress, flag):
@@ -32,7 +35,7 @@ def server():
         print("[S]: Server socket created")
     except mysoc.error as err:
         print('{} \n'.format("socket open error ", err))
-    server_binding = ('', 60002)
+    server_binding = ('', 65349)
     ss.bind(server_binding)
     ss.listen(1)
     host = mysoc.gethostname()
@@ -48,7 +51,7 @@ def server():
         print("[S]: Server socket created")
     except mysoc.error as err:
         print('{} \n'.format("socket open error ", err))
-    server_binding = ('', 65349)
+    server_binding = ('', 70001)
     so.bind(server_binding)
     so.listen(1)
     host = mysoc.gethostname()

@@ -1,6 +1,7 @@
 import hmac
 import json
-import pickle
+import socket as mysoc
+from cPickle import dumps, loads
 c1 = "arianna"
 c2 = "grande"
 d1 = hmac.new("k3521".encode(), c1.encode("utf-8"))
@@ -20,13 +21,23 @@ def normalize(args):
     # print(key, challenge, hostname)
 
 
-with open("PROJ3-HNS.txt", "r") as file_handler:
-    for line in file_handler:
-        key, challenge, hostname = normalize(line)
-        # print(key, challenge, hostname)
-        digest = hmac.new(key.encode(), challenge.encode("utf-8")).hexdigest()
-        serialized_data = pickle.dumps([key, challenge], -1)
-        # print(pickle.dumps()
-        # print("Line: {}Digest: {}".format(line, digest))
+def test():
+    with open("PROJ3-HNS.txt", "r") as file_handler:
+        for line in file_handler:
+            key, challenge, hostname = normalize(line)
+            # print(key, challenge, hostname)
+            digest = hmac.new(
+                key.encode(), challenge.encode("utf-8")).hexdigest()
+            serialized_data = dumps([challenge, digest], -1)
+            # print(serialized_data)
+            # print(hmac.compare_digest())
+            deserialized_data = loads(serialized_data)
+            print(
+                "Challenge: {} --> Digest: {}".format(deserialized_data[0], deserialized_data[1]))
 
-# fh.close()
+
+if __name__ == "__main__":
+    # print(mysoc.gethostbyname("cpp.cs.rutgers.edu"))
+    # print(mysoc.gethostbyname("java.cs.rutgers.edu"))
+
+    test()

@@ -3,79 +3,89 @@
 # -to connect to TLDS1 server
 # -to connect to TLDS2 server
 import socket as mysoc
+import hmac
+from pickle import dumps, loads
+
+# AS listens on port 65347 for CLIENT
+# AS CREATES SOCKET on port 65348 for TLDS1
+# AS CREATES SOCKET on port 65349 for TLDS2
 
 
 def server():
-    # connect to TLDS1
-    try:
-        cs1 = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
-        print("[C]: Client socket created")
-    except mysoc.error as err:
-        print('{} \n'.format("socket open error ", err))
+    # CLIENT CONNECTION
 
-    port = 65348
-    server_binding = (mysoc.gethostbyname("cpp.cs.rutgers.edu"), port)
-    cs1.connect(server_binding)
-# connect to TLDS2
     try:
-        cs2 = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
+        AS_SOCKET = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
         print("[C]: Client socket created")
-    except mysoc.error as err:
-        print('{} \n'.format("socket open error ", err))
+    except mysoc.errnr as err:
+        print('{}'.format('socket open error', err))
 
-    port = 65349
-    server_binding = (mysoc.gethostbyname("java.cs.rutgers.edu"), port)
-    cs2.connect(server_binding)
-# socket to connect to the client
-    try:
-        ss = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
-        print("[S]: Server socket created")
-    except mysoc.error as err:
-        print('{} \n'.format("socket open error ", err))
-    server_binding = ('', 65347)
-    ss.bind(server_binding)
-    ss.listen(1)
+    CLIENT_PORT = 65347
+    as_binding = ('', CLIENT_PORT)
+    AS_SOCKET.bind(as_binding)
+    AS_SOCKET.listen(1)
     host = mysoc.gethostname()
-    print("[S]: Server host name is: ", host)
+    print("[AS]: Server host name is: ", host)
     localhost_ip = (mysoc.gethostbyname(host))
-    print("[S]: Server IP address is  ", localhost_ip)
-    csockid, addr = ss.accept()
-    print("[S]: Got a connection request from a client at", addr)
+    print("[AS]: Server IP address is  ", localhost_ip)
+    csockid, addr = AS_SOCKET.accept()
+    print("[AS]: Got a connection request from a client at", addr)
+
+    # TLDS1 CONNECTION
+    try:
+        TLDS1_SOCKET = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
+        print("[TLDS1_SOCKET]: Socket created")
+    except mysoc.error as err:
+        print('{} \n'.format("socket open error ", err))
+
+    TLDS1_PORT = 65348
+    server_binding = (mysoc.gethostbyname("cpp.cs.rutgers.edu"), TLDS1_PORT)
+    TLDS1_SOCKET.connect(server_binding)
+
+    # TLDS2 CONNECTION
+    try:
+        TLDS2_SOCKET = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
+        print("[TLDS2_SOCKET]: TLDS2_SOCKET socket created")
+    except mysoc.error as err:
+        print('{} \n'.format("socket open error ", err))
+
+    TLDS2_PORT = 65349
+    server_binding = (mysoc.gethostbyname("java.cs.rutgers.edu"), TLDS2_PORT)
+    TLDS2_SOCKET.connect(server_binding)
+
+
 # AS server will keep receiving strings from the client
 # and computing the digest and keep sending it off to both TLDS servers
 # Then, it will compare the original digest received from the client to
 # the digest received from the TLDS servers.
 
     while True:
-        challenge = csockid.recv(1024)  # receive challenge from client
-        if not challenge:
+        serialized_data = csockid.recv(1024)
+        if not serialized_data:
             break
-        challenge = challenge.decode('utf-8')
-        challenge = challenge.strip()
-        digest = csockid.recv(1024)  # receive the digest from client
-        digest = digest.decode('utf-8')
-        digest = digest.strip()
-        server = ""
-# send challenge to TLDS1, receive a digest
-        cs1.send(challenge.encode('utf-8'))
-        digest1 = cs1.recv(1024)
-        digest1 = digest1.decode('utf-8')
-# send digest to TLDS2, receive a digest
-        cs2.send(challenge.encode('utf-8'))
-        digest2 = cs2.recv(1024)
-        digest2 = digest2.decode('utf-8')
-# compare the digests to the original digest recv from the client
-        if (digest1 == digest):  # digest match is in TLDS1
-            server = "TLDS1"
+        deserialized_data = loads(serialized_data)
+        challenge = deserialized_data[0]
+        as_digest = deserialized_data[1]
+        print(challenge, as_digest)
 
-        if (digest2 == digest):  # digest match is in TLDS2
-            server = "TLDS2"
-# send the client the server string back
-        csockid.send(server.encode('utf-8'))
+        encoded_challenge = challenge.encode('utf-8')
+        TLDS1_SOCKET.send(encoded_challenge)
+        print("Sent {} to TLDS1".format(challenge))
+        TLDS2_SOCKET.send(encoded_challenge)
+        print("Sent {} to TLDS2".format(challenge))
 
-# Close the server socket
-    #input("Press ENTER to close server socket and end the program.")
-    ss.close()
+        tlds1_digest = TLDS1_SOCKET.recv(1024).decode('utf-8')
+        tlds2_digest = TLDS1_SOCKET.recv(1024).decode('utf-8')
+
+        server_hostname = ""
+        if hmac.compare_digest(tlds1_digest, as_digest):
+            server_hostname = "cpp.cs.rutgers.edu"
+        if hmac.compare_digest(tlds2_digest, as_digest):
+            server_hostname = "java.cs.rutgers.edu"
+
+        csockid.send(server_hostname.encode('utf-8'))
+
+    AS_SOCKET.close()
     exit()
 
 
