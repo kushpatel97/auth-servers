@@ -98,9 +98,9 @@ def client():
                 result = TLDS1_SOCKET.recv(1024)
                 result = result.decode('utf-8')
                 result = result.strip()
-                result = "{} {}".format(as_response, result)
-                print(result)
-                output.write("{} {}".format(as_response, result))
+                result = "{} {}\n".format(as_response, result)
+                print("WRITE: {}".format(result))
+                output.write(result)
 
             elif as_response == "TLDS2":
                 TLDS2_SOCKET.send(hostname.encode('utf-8'))
@@ -108,56 +108,10 @@ def client():
                 result = TLDS2_SOCKET.recv(1024)
                 result = result.decode('utf-8')
                 result = result.strip()
-                result = "{} {}".format(as_response, result)
-                print(result)
-                output.write("{} {}".format(as_response, result))
+                result = "{} {}\n".format(as_response, result)
+                print("WRITE: {}".format(result))
+                output.write(result)
 
-            # # print("=========", result)
-            # if (result == "False"):
-            #     output.write(as_response + " " + hostname +
-            #                  " - Error: HOST NOT FOUND\n")
-
-            # else:
-            #     output.write(as_response + " " + hostname +
-            #                  " " + result + " A\n")
-
-#     for line in f:
-#         x = line
-#         key, challenge, hostname = x.split()
-#         key = key.strip()
-#         challenge = challenge.strip()
-#         hostname = hostname.strip()
-#         digest = hmac.new(key.encode(), challenge.encode("utf-8")).hexdigest()
-# # now that digest has been made- send challenge and digest to AS
-#         AS_SOCKET.send(challenge.encode('utf-8'))
-#         AS_SOCKET.send(digest.encode('utf-8'))
-#         server = AS_SOCKET.recv(1024)
-#         # which server to send request to
-#         server = server.decode("utf-8").strip()
-#         print("AS server response ", server)
-#         result = ""  # what we get from the server
-
-#         if (server == "TLDS1"):
-#             TLDS1_SOCKET.send(hostname.encode('utf-8'))
-#             # TLDS2_SOCKET.send("NO".encode('utf-8'))
-#             result = TLDS1_SOCKET.recv(1024)
-#             result = result.decode('utf-8')
-#             result = result.strip()
-
-#         if (server == "TLDS2"):
-#             TLDS2_SOCKET.send(hostname.encode('utf-8'))
-#             # TLDS1_SOCKET.send("NO".encode('utf-8'))
-#             result = TLDS2_SOCKET.recv(1024)
-#             result = result.decode('utf-8')
-#             result = result.strip()
-
-#         if (result == "False"):
-#             output.write(server + " " + hostname +
-#                          " - Error: HOST NOT FOUND\n")
-
-#         else:
-#             output.write(server + " " + hostname + " " + result + " A\n")
-# close the client socket
     print("Results have been written to RESOLVED.txt.")
     AS_SOCKET.close()
     TLDS1_SOCKET.close()

@@ -68,10 +68,11 @@ def server():
         serialized_data = csockid.recv(1024)
         if not serialized_data:
             break
-        deserialized_data = serialized_data.decode("utf-8").split(";")
+        deserialized_data = serialized_data.decode("utf-8")
+        deserialized_data = deserialized_data.split(";")
         # print("Message recieved from client", deserialized_data)
-        challenge = deserialized_data[0]
-        as_digest = deserialized_data[1]
+        challenge = deserialized_data[0].strip()
+        as_digest = deserialized_data[1].strip()
         print("{} {}".format(challenge, as_digest))
 
         encoded_challenge = challenge.strip().encode('utf-8')
@@ -86,16 +87,17 @@ def server():
 
         tlds1_data = TLDS1_SOCKET.recv(1024)
         tlds1_digest = tlds1_data.decode('utf-8')
+        tlds1_digest = tlds1_digest.strip()
         print("[TLDS1 Digest]: {}".format(tlds1_digest))
 
         tlds2_data = TLDS2_SOCKET.recv(1024)
         tlds2_digest = tlds2_data.decode('utf-8')
+        tlds1_digest = tlds1_digest.strip()
         print("[TLDS2 Digest]: {}".format(tlds2_digest))
 
         # server_hostname = ""
         if as_digest == tlds1_digest:
             csockid.send("TLDS1".encode('utf-8'))
-
         elif as_digest == tlds2_digest:
             csockid.send("TLDS2".encode('utf-8'))
 

@@ -27,11 +27,16 @@ def server():
     # This creates a new entry list to append all of the DNS entries to
     Entrytable = []
 # open the file for reading, and to scan through the entire document
-    with open("PROJ3-TLDS2.txt", "r") as fp:
+    with open("PROJ3-TLDS1.txt", "r") as fp:
         for line in fp:
             host, ip, flag = normalize(line)
             node = Node(host, ip, flag)
             Entrytable.append(node)
+
+    with open("PROJ3-TLDS1.txt", "r") as fp2:
+        table = fp2.readlines()
+    table = [x.strip() for x in table]
+    print(table)
 
     # CONNECTION TO AS SERVER
     try:
@@ -96,15 +101,25 @@ def server():
 
         intable = False
         if data != 'NO':
+            # for entry in table:
+            #     if entry.startswith(data):
+            #         print("LINE: {}".format(entry))
+            #         c_sockid.send(entry.encode('utf-8'))
+            #         intable=True
+            # if intable==False:
+            #     error_msg = "Error: HOST NOT FOUND"
+            #     print(error_msg)
+            #     c_sockid.send(error_msg.encode('utf-8'))
+
             for nodes in Entrytable:
                 toreturn = ""
-                if (nodes.host == data):
-                    toreturn = "{} {} {}".format(data, nodes.ipaddress, "A")
+                if (nodes.host == data.strip()):
+                    toreturn = "{} {} {}\n".format(data, nodes.ipaddress, "A")
                     c_sockid.send(toreturn.encode("utf-8"))
                     print(toreturn)
                     intable = True
             if intable == False:
-                error_msg = "ERROR: HOST NOT FOUND\n"
+                error_msg = "Error: HOST NOT FOUND"
                 print(error_msg)
                 c_sockid.send(error_msg.encode('utf-8'))
 
