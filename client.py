@@ -1,5 +1,6 @@
 import socket as mysoc
 import hmac
+import time
 from cPickle import dumps, loads
 
 # CLIENT CREATES SOCKETS TO TLDS1 ON 65348
@@ -25,41 +26,41 @@ def client():
 
     AS_PORT = 65347
     strhost = mysoc.gethostbyname(mysoc.gethostname())
-    # roothost=input("Enter the hostname of the root server: \n")
     server_binding = (strhost, AS_PORT)
     AS_SOCKET.connect(server_binding)
 
+    time.sleep(1)
     # connect to TLDS1
     try:
         TLDS1_SOCKET = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
-        print("[C]: Client socket created")
+        print("[TLDS1]: Client socket created")
     except mysoc.error as err:
         print('{} \n'.format("socket open error ", err))
 
-    TLDS1_PORT = 65348
-    # TS1host=input("Enter the hostname of 1st authentication server \n")
+    TLDS1_PORT = 55551
     ts1_host = mysoc.gethostbyname("cpp.cs.rutgers.edu")
-    TS1_bind = (ts1_host, TLDS1_PORT)
-    TLDS1_SOCKET.connect(TS1_bind)
-    print("[TLDS1]: Connected")
+    ts1_server_binding = (ts1_host, TLDS1_PORT)
+    TLDS1_SOCKET.connect(ts1_server_binding)
+    print("client connected to tlds1")
+
+    time.sleep(1)
 
     # connect to TLDS2
     try:
         TLDS2_SOCKET = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
-        print("[C]: Client socket created")
+        print("[TLDS2]: Client socket created")
     except mysoc.error as err:
         print('{} \n'.format("socket open error ", err))
 
-    TLDS2_PORT = 65349
-    # TS2host=input("Enter the hostname of 2nd authentication server \n")
-
+    TLDS2_PORT = 55552
     ts2_host = mysoc.gethostbyname("java.cs.rutgers.edu")
+    ts2_server_binding = (ts2_host, TLDS2_PORT)
+    TLDS2_SOCKET.connect(ts2_server_binding)
+    print("client connected to tlds2")
 
-    TS2_bind = (ts2_host, TLDS2_PORT)
-    TLDS2_SOCKET.connect(TS2_bind)
-    print("[TLDS2]: Connected")
+    time.sleep(1)
 
-    f = open("PROJ3-HNS.txt", "r")
+    # f = open("PROJ3-HNS.txt", "r")
 
     output = open("RESOLVED.txt", "w")
 
@@ -71,57 +72,96 @@ def client():
     # send to AS server, and then wait for response (lines 62-63)
     # then search for the hostname in the appropriate TS server (lines 62-72)
 
-    # with open("PROJ3-HNS.txt", "r") as fp:
-    #     for line in fp:
-    #         key, challenge, hostname = normalize(line)
-    #         digest = hmac.new(key.encode(), challenge.encode('utf-8')).hexdigest())
-    #         serialized_data=dumps([challenge, digest], -1)
-    #         AS_SOCKET.send(serialized_data)
-    #         as_response=AS_SOCKET.recv(1024)
-    #         print("Recieved from AS Server: ", as_response)
+    with open("PROJ3-HNS.txt", "r") as fp:
+        for line in fp:
+            if not line:
+                break
 
-    #         if as_response == "cpp.cs.rutgers.edu":
-    #             pass
+            key, challenge, hostname = normalize(line)
+            # print(key, challenge, hostname)
+            digest = hmac.new(key.encode(), challenge.encode('utf-8'))
+            digest = digest.hexdigest()
 
-    #         if as_response == "java.cs.rutgers.edu":
-    #             pass
+            broker = "{};{}".format(challenge, digest).strip()
+            print(broker)
 
-    for line in f:
-        x = line
-        key, challenge, hostname = x.split()
-        key = key.strip()
-        challenge = challenge.strip()
-        hostname = hostname.strip()
-        digest = hmac.new(key.encode(), challenge.encode("utf-8"))
-# now that digest has been made- send challenge and digest to AS
-        AS_SOCKET.send(challenge.encode('utf-8'))
-        AS_SOCKET.send(digest.encode('utf-8'))
-        server = AS_SOCKET.recv(1024)  # which server to send request to
-        result = ""  # what we get from the server
+            AS_SOCKET.send(broker.encode("utf-8"))
+            time.sleep(1)
+            as_response = AS_SOCKET.recv(1024)
+            as_response = as_response.decode("utf-8").strip()
+            print("Recieved from AS Server: ", as_response)
 
-        if (server == "TLDS1"):
-            TLDS1_SOCKET.send(hostname.encode('utf-8'))
-            TLDS2_SOCKET.send("NO".encode('utf-8'))
-            result = TLDS1_SOCKET.recv(1024)
-            result = result.decode('utf-8')
-            result = result.strip()
+            result = ""
+            if as_response == "TLDS1":
+                TLDS1_SOCKET.send(hostname.encode('utf-8'))
+                TLDS2_SOCKET.send("NO".encode('utf-8'))
+                result = TLDS1_SOCKET.recv(1024)
+                result = result.decode('utf-8')
+                result = result.strip()
+                result = "{} {}".format(as_response, result)
+                print(result)
+                output.write("{} {}".format(as_response, result))
 
-        if (server == "TLDS2"):
-            TLDS2_SOCKET.send(hostname.encode('utf-8'))
-            TLDS1_SOCKET.send("NO".encode('utf-8'))
-            result = TLDS2_SOCKET.recv(1024)
-            result = result.decode('utf-8')
-            result = result.strip()
+            elif as_response == "TLDS2":
+                TLDS2_SOCKET.send(hostname.encode('utf-8'))
+                TLDS1_SOCKET.send("NO".encode('utf-8'))
+                result = TLDS2_SOCKET.recv(1024)
+                result = result.decode('utf-8')
+                result = result.strip()
+                result = "{} {}".format(as_response, result)
+                print(result)
+                output.write("{} {}".format(as_response, result))
 
-        if (result == "False"):
-            output.write(server + " " + hostname +
-                         " - Error: HOST NOT FOUND\n")
+            # # print("=========", result)
+            # if (result == "False"):
+            #     output.write(as_response + " " + hostname +
+            #                  " - Error: HOST NOT FOUND\n")
 
-        else:
-            output.write(server + " " + hostname + " " + result + " A\n")
+            # else:
+            #     output.write(as_response + " " + hostname +
+            #                  " " + result + " A\n")
+
+#     for line in f:
+#         x = line
+#         key, challenge, hostname = x.split()
+#         key = key.strip()
+#         challenge = challenge.strip()
+#         hostname = hostname.strip()
+#         digest = hmac.new(key.encode(), challenge.encode("utf-8")).hexdigest()
+# # now that digest has been made- send challenge and digest to AS
+#         AS_SOCKET.send(challenge.encode('utf-8'))
+#         AS_SOCKET.send(digest.encode('utf-8'))
+#         server = AS_SOCKET.recv(1024)
+#         # which server to send request to
+#         server = server.decode("utf-8").strip()
+#         print("AS server response ", server)
+#         result = ""  # what we get from the server
+
+#         if (server == "TLDS1"):
+#             TLDS1_SOCKET.send(hostname.encode('utf-8'))
+#             # TLDS2_SOCKET.send("NO".encode('utf-8'))
+#             result = TLDS1_SOCKET.recv(1024)
+#             result = result.decode('utf-8')
+#             result = result.strip()
+
+#         if (server == "TLDS2"):
+#             TLDS2_SOCKET.send(hostname.encode('utf-8'))
+#             # TLDS1_SOCKET.send("NO".encode('utf-8'))
+#             result = TLDS2_SOCKET.recv(1024)
+#             result = result.decode('utf-8')
+#             result = result.strip()
+
+#         if (result == "False"):
+#             output.write(server + " " + hostname +
+#                          " - Error: HOST NOT FOUND\n")
+
+#         else:
+#             output.write(server + " " + hostname + " " + result + " A\n")
 # close the client socket
     print("Results have been written to RESOLVED.txt.")
     AS_SOCKET.close()
+    TLDS1_SOCKET.close()
+    TLDS2_SOCKET.close()
     exit()
 
 

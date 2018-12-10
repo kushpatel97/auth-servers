@@ -1,43 +1,95 @@
-import hmac
-import json
+import sys
 import socket as mysoc
-from cPickle import dumps, loads
-c1 = "arianna"
-c2 = "grande"
-d1 = hmac.new("k3521".encode(), c1.encode("utf-8"))
-d2 = hmac.new("k3522".encode(), c1.encode("utf-8"))
-d3 = hmac.new("k3521".encode(), c1.encode("utf-8"))
-d4 = hmac.new("k3521".encode(), c2.encode("utf-8"))
+import threading
+import time
 
 
-def normalize(args):
-    args.replace('\n', '').replace('\r', '')
-    key, challenge, hostname = args.split()
-    key = key.strip()
-    challenge = challenge.strip()
-    hostname = hostname.strip()
-    return key, challenge, hostname
+def server():
+    try:
+        ss = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
+        print("[S]: Server socket created")
+    except mysoc.error as err:
+        print('{} \n'.format("socket open error ", err))
 
-    # print(key, challenge, hostname)
+    server_binding = ('', 5001)
+    # Set up socket
+    ss.bind(server_binding)
+    ss.listen(1)
+    host = mysoc.gethostname()
+    print("[S]: Server host name is: ", host)
+    localhost_ip = (mysoc.gethostbyname(host))
+    print("[S]: Server IP address is  ", localhost_ip)
+    csockid, addr = ss.accept()
+    print("[S]: Got a connection request from a client at", addr)
+
+    try:
+        # Create socket for tlds_com Server
+        tlds1 = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
+        print("[RS]: Socket created")
+    except mysoc.error as err:
+        print('{} \n'.format("socket open error ", err))
+
+    try:
+        # Create socket for tlds_edu Server
+        tlds2 = mysoc.socket(mysoc.AF_INET, mysoc.SOCK_STREAM)
+        print("[RS]: Socket created")
+    except mysoc.error as err:
+        print('{} \n'.format("socket open error ", err))
+
+    # Define the port on which you want to connect to the com server
+    tlds1_port = 8887
+    tlds1_ip = mysoc.gethostbyname("cpp.cs.rutgers.edu")
+    server_binding1 = (tlds1_ip, tlds1_port)
+    tlds1.connect(server_binding1)
+
+    # Define the port on which you want to connect to edu the server
+    tlds2_port = 8890
+    tlds2_ip = mysoc.gethostbyname("java.cs.rutgers.edu")
+    server_binding2 = (tlds2_ip, tlds2_port)
+    tlds2.connect(server_binding2)
 
 
-def test():
-    with open("PROJ3-HNS.txt", "r") as file_handler:
-        for line in file_handler:
-            key, challenge, hostname = normalize(line)
-            # print(key, challenge, hostname)
-            digest = hmac.new(
-                key.encode(), challenge.encode("utf-8")).hexdigest()
-            serialized_data = dumps([challenge, digest], -1)
-            # print(serialized_data)
-            # print(hmac.compare_digest())
-            deserialized_data = loads(serialized_data)
-            print(
-                "Challenge: {} --> Digest: {}".format(deserialized_data[0], deserialized_data[1]))
+# loop which receives data from the client
+
+    more_messages = True
+    while more_messages:
+        data_from_client = csockid.recv(1024)
+        msg = data_from_client.decode('utf-8')
+        print("[S]: Data Received: ", msg)
+        if(msg.strip() == "disconnecting"):
+            # If disconnecting, break out of the loop and close the tlds_servers
+            tlds1.send("disconnecting".encode('utf-8'))
+            tlds2.send("disconnecting".encode('utf-8'))
+            more_messages = False
+        else:
+            array = msg.split()
+            challenge = array[0]
+            digest = array[1]
+            tlds1.send(challenge.strip().encode('utf-8'))
+            time.sleep(1)
+            tlds2.send(challenge.strip().encode('utf-8'))
+            time.sleep(1)
+            data_from_tlds1 = tlds1.recv(1024)
+            D1 = data_from_tlds1.decode('utf-8')
+            print(D1)
+            data_from_tlds2 = tlds2.recv(1024)
+            D2 = data_from_tlds2.decode('utf-8')
+            print(D2)
+            if(digest == D1):
+                csockid.send("TLDS1".encode('utf-8'))
+            elif(digest == D2):
+                csockid.send("TLDS2".encode('utf-8'))
+
+        # Close the server socket
+    ss.close()
+# close other sockets
+# tlds_edu.close()
+# tlds_com.close()
 
 
-if __name__ == "__main__":
-    # print(mysoc.gethostbyname("cpp.cs.rutgers.edu"))
-    # print(mysoc.gethostbyname("java.cs.rutgers.edu"))
+t1 = threading.Thread(name='server', target=server)
+t1.start()
 
-    test()
+input("Hit ENTER  to exit")
+
+exit()
